@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Backend API service - FastAPI application
+  # Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      # Database connection string - using external host PostgreSQL
+      # Validates: Requirement 10.6 (environment variable configuration)
+      - DATABASE_URL=postgresql://data_veil:2AW5sPDYmZP7sFJS@172.17.0.1:5432/data_veil
+      # Maximum file size limit (50MB)
+      # Validates: Requirement 10.6 (customizable file size limits)
+      - MAX_FILE_SIZE=52428800
+      # Upload directory path
+      # Validates: Requirement 10.6 (customizable storage paths)
+      - UPLOAD_DIR=/app/uploads
+      # NLP model path for offline deployment
+      # Validates: Requirement 10.3 (offline NLP models)
+      - NLP_MODEL_PATH=/app/models/chinese_ner
+    volumes:
+      # Persistent storage for uploaded files
+      # Validates: Requirement 10.4 (persistent data storage)
+      - ./uploads:/app/uploads
+      # Persistent storage for NLP models
+      # Validates: Requirement 10.4 (persistent data storage)
+      - ./models:/app/models
+    # Removed depends_on since using external database
+    # External database at 172.17.0.1:5432
+    healthcheck:
+      # Health check endpoint for monitoring
+      # Validates: Requirement 10.7 (health check endpoints)
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Frontend web interface - Vue 3 + Nginx
+  # Validates: Requirements 10.1, 10.2
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:80"
+    depends_on:
+      # Wait for backend to be available
+      # Validates: Requirement 10.1 (service dependencies)
+      - backend
+    restart: unless-stopped
